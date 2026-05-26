@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/aplikasi_kinerja_madrasah.html"
+    }
+  ]
+}
