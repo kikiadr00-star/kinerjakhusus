@@ -755,7 +755,7 @@
                 </div>
                 <input type="file" accept="image/*" id="logo-left-input" class="hidden" @change="uploadLogoLeft" />
                 <div class="flex gap-1.5">
-                  <label htmlFor="logo-left-input" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg cursor-pointer transition">
+                  <label for="logo-left-input" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg cursor-pointer transition">
                     Unggah Foto
                   </label>
                   <button v-if="activeUser.customLogoLeft" @click="resetLogoLeft" class="px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold text-xs rounded-lg transition">
@@ -787,7 +787,7 @@
                 </div>
                 <input type="file" accept="image/*" id="logo-right-input" class="hidden" @change="uploadLogoRight" />
                 <div class="flex gap-1.5">
-                  <label htmlFor="logo-right-input" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg cursor-pointer transition">
+                  <label for="logo-right-input" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg cursor-pointer transition">
                     Unggah Foto
                   </label>
                   <button v-if="activeUser.customLogoRight" @click="resetLogoRight" class="px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold text-xs rounded-lg transition">
