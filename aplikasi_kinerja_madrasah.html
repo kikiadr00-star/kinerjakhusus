@@ -918,6 +918,26 @@
             </div>
           </div>
 
+          <!-- Konfigurasi AI -->
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mt-6">
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span class="p-1.5 bg-blue-50 text-blue-700 rounded-xl">
+                <span>✨</span>
+              </span>
+              Konfigurasi Asisten AI (Gemini)
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">Masukkan API Key Google Gemini Anda agar fitur Asisten Catatan AI dapat berfungsi. API Key hanya disimpan secara lokal di browser Anda.</p>
+            <div class="flex items-end gap-4">
+              <div class="flex-1">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">API Key Gemini</label>
+                <input type="password" v-model="geminiApiKey" placeholder="AIzaSy..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-emerald-500 text-sm font-semibold text-slate-800" />
+              </div>
+              <button @click="saveApiKey" type="button" class="py-2.5 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs transition">
+                Simpan API Key
+              </button>
+            </div>
+          </div>
+
         </div>
 
       </main>
@@ -1182,6 +1202,13 @@
         const filterMonth = ref('04');
         const filterYear = ref('2026');
 
+        // AI API Key
+        const geminiApiKey = ref(localStorage.getItem('gemini_api_key') || '');
+        const saveApiKey = () => {
+          localStorage.setItem('gemini_api_key', geminiApiKey.value);
+          triggerToast('API Key AI berhasil disimpan!');
+        };
+
         // Modals & Toasts
         const deleteTargetId = ref(null);
         const toast = ref({ show: false, message: '', type: 'success' });
@@ -1342,12 +1369,16 @@
             triggerToast('Tuliskan catatan terlebih dahulu!', 'error');
             return;
           }
+          if (!geminiApiKey.value) {
+            triggerToast('Silakan atur API Key Gemini di menu Pengaturan terlebih dahulu!', 'error');
+            return;
+          }
 
           isAnalyzing.value = true;
           extractedLogs.value = [];
 
-          const apiKey = "";
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+          const apiKey = geminiApiKey.value;
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
           const systemPrompt = `Anda adalah asisten administrasi sekolah madrasah Aliyah yang sangat cerdas di Indonesia. 
 Tugas Anda adalah menerima paragraf atau daftar catatan harian kasual dari guru/staf dan mengubahnya menjadi daftar entri capaian kinerja resmi yang terstruktur.
@@ -1588,7 +1619,9 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
           getIndonesianMonthNormal,
           getIndonesianMonthCaps,
           getFormattedDateIndo,
-          handlePrint
+          handlePrint,
+          geminiApiKey,
+          saveApiKey
         };
       }
     });
