@@ -1389,7 +1389,12 @@ Aturan Pemrosesan:
 3. Ubah uraian kegiatan santai menjadi kalimat formal berstandar dinas dengan bahasa baku (contoh: "bikin RPP" -> "Menyusun dan merancang rencana pelaksanaan pembelajaran (RPP) mingguan").
 4. Volume harus berupa angka bulat positif (default: 1).
 5. Satuan Hasil harus disesuaikan ke salah satu dari kategori berikut saja: "Dokumen", "Laporan", "Kegiatan", "Berkas", "Paket".
-6. WAJIB mengembalikan hasil dalam format JSON murni TANPA markdown backticks (\`\`\`).`;
+6. WAJIB mengembalikan hasil dalam format JSON murni TANPA markdown backticks (\`\`\`), dengan struktur persis seperti ini:
+{
+  "extracted": [
+    { "date": "YYYY-MM-DD", "activity": "Deskripsi", "volume": 1, "satuan": "Dokumen" }
+  ]
+}`;
 
           const userQuery = `Berikut adalah catatan kinerja harian saya:
 ---
@@ -1401,27 +1406,7 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
             contents: [{ parts: [{ text: userQuery }] }],
             systemInstruction: { parts: [{ text: systemPrompt }] },
             generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: "OBJECT",
-                properties: {
-                  extracted: {
-                    type: "ARRAY",
-                    description: "Daftar entri kinerja hasil ekstraksi cerdas",
-                    items: {
-                      type: "OBJECT",
-                      properties: {
-                        date: { type: "STRING", description: "Tanggal kegiatan format YYYY-MM-DD" },
-                        activity: { type: "STRING", description: "Deskripsi tugas formal dinas resmi diawali huruf kapital" },
-                        volume: { type: "INTEGER", description: "Jumlah volume angka" },
-                        satuan: { type: "STRING", description: "Pilihan: 'Dokumen', 'Laporan', 'Kegiatan', 'Berkas', 'Paket'" }
-                      },
-                      required: ["date", "activity", "volume", "satuan"]
-                    }
-                  }
-                },
-                required: ["extracted"]
-              }
+              responseMimeType: "application/json"
             }
           };
 
