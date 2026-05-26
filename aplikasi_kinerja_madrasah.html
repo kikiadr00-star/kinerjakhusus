@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Kinerja Madrasah - Laporan Capaian Kinerja Bulanan</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts (Inter) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Vue 3 CDN (Global Build) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <style id="kinerja-styles">
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-page {
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border: none !important;
+      }
+      /* Atur margin halaman cetak agar presisi kertas A4 */
+      @page {
+        size: A4;
+        margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+      }
+    }
+    
+    /* Smooth Scroll & Animations */
+    html {
+      scroll-behavior: smooth;
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+    .animate-slide-in {
+      animation: slideIn 0.3s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <div id="app" v-cloak>
+    <!-- Toast Alert Pop-up -->
+    <div v-if="toast.show" 
+         class="fixed top-5 right-5 z-50 p-4 rounded-2xl shadow-xl border text-sm flex items-center gap-3 transition-all duration-300 bg-white border-emerald-100 text-emerald-900 animate-slide-in">
+      <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+      <span class="font-semibold">{{ toast.message }}</span>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Kegiatan -->
+    <div v-if="deleteTargetId" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-100">
+        <div class="flex items-center gap-3.5 mb-3.5">
+          <div class="p-2.5 bg-red-50 text-red-600 rounded-2xl">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <h3 class="font-bold text-slate-800 text-lg">Hapus Kegiatan?</h3>
+        </div>
+        <p class="text-sm text-slate-500 mb-6 leading-relaxed">Apakah Anda yakin ingin menghapus data laporan tugas ini secara permanen?</p>
+        <div class="flex gap-3 justify-end">
+          <button @click="deleteTargetId = null" type="button" class="px-4.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
+            Batal
+          </button>
+          <button @click="executeDelete" type="button" class="px-4.5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-xs transition shadow-md">
+            Ya, Hapus Data
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =============== PORTAL MASUK / LOGIN & REGISTER =============== -->
+    <div v-if="!isLoggedIn" class="min-h-screen bg-gradient-to-tr from-emerald-800 via-emerald-600 to-teal-800 flex items-center justify-center p-4">
+      <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-emerald-100 transition-all">
+        
+        <!-- Header Portal -->
+        <div class="bg-emerald-900 p-8 text-center text-white flex flex-col items-center">
+          <div class="bg-white p-3.5 rounded-2xl shadow-inner mb-4 w-24 h-24 flex items-center justify-center">
+            <logo-kemenag></logo-kemenag>
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight">E-Kinerja Mandiri</h1>
+          <p class="text-xs text-emerald-200 mt-1 uppercase tracking-widest font-semibold">Madrasah Aliyah Negeri 4 Banjar</p>
+        </div>
+
+        <!-- Form Login -->
+        <form v-if="!isRegistering" @submit.prevent="handleLogin" class="p-8 space-y-5">
+          <div class="text-center mb-2">
+            <h2 class="text-lg font-bold text-slate-800">Masuk Akun Pengguna</h2>
+            <p class="text-xs text-slate-500">Gunakan User ID yang telah didaftarkan</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">User ID Sistem</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              </span>
+              <input type="text" required v-model="inputUser" placeholder="Masukkan User ID Anda" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-sm text-slate-800" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Password Keamanan</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              </span>
+              <input type="password" required v-model="inputPass" placeholder="Masukkan Sandi Keamanan" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-sm text-slate-800" />
+            </div>
+          </div>
+
+          <div v-if="authError" class="text-red-600 text-xs bg-red-50 p-3 rounded-xl flex items-center gap-2 border border-red-100">
+            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+            <span class="font-medium">{{ authError }}</span>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm">
+            Masuk Aplikasi Kinerja
+          </button>
+
+          <div class="relative flex py-2 items-center">
+            <div class="flex-grow border-t border-slate-200"></div>
+            <span class="flex-shrink mx-3 text-slate-400 text-xs font-semibold">BELUM PUNYA AKUN?</span>
+            <div class="flex-grow border-t border-slate-200"></div>
+          </div>
+
+          <button @click="isRegistering = true; authError = ''" type="button" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition border border-slate-250 text-center">
+            Daftar Akun Baru (Mandiri)
+          </button>
+
+          <div class="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-100 text-[11px] text-emerald-900 space-y-1">
+            <p class="font-bold text-emerald-850">🔑 Akun Default Tersedia:</p>
+            <p>1. Operator: <span class="font-mono bg-white px-1 py-0.5 rounded border text-emerald-800">rizki_kinerja</span> sandi: <span class="font-mono bg-white px-1 py-0.5 rounded border text-emerald-800">banjar123</span></p>
+            <p>2. Guru Baru: <span class="font-mono bg-white px-1 py-0.5 rounded border text-emerald-800">ahmad_guru</span> sandi: <span class="font-mono bg-white px-1 py-0.5 rounded border text-emerald-800">guru123</span></p>
+          </div>
+        </form>
+
+        <!-- Form Registrasi Mandiri -->
+        <form v-else @submit.prevent="handleRegister" class="p-8 space-y-4">
+          <div class="text-center mb-1">
+            <h2 class="text-lg font-bold text-slate-800">Daftar Akun Guru / Staf</h2>
+            <p class="text-xs text-slate-500">Lengkapi data untuk membuat berkas pribadi Anda</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">User ID Baru</label>
+              <input type="text" required placeholder="budi_guru" v-model="regUser" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs text-slate-800" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Password</label>
+              <input type="password" required placeholder="Minimal 4 digit" v-model="regPass" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs text-slate-800" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Nama Pegawai Lengkap (Kapital)</label>
+            <input type="text" required placeholder="BUDI SETIAWAN, S.Ag" v-model="regFullName" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs text-slate-800" />
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">NIP (Nomor Induk Pegawai)</label>
+            <input type="text" required placeholder="Masukkan nomor NIP resmi" v-model="regNip" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs font-mono text-slate-800" />
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-2">
+              <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Nama Jabatan</label>
+              <input type="text" required placeholder="Guru Fiqih / Wali Kelas" v-model="regJabatan" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs text-slate-800" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Golongan</label>
+              <select v-model="regPangkat" class="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs font-semibold text-slate-800">
+                <option value="V">V (Lainnya)</option>
+                <option value="III/a">III/a</option>
+                <option value="III/b">III/b</option>
+                <option value="III/c">III/c</option>
+                <option value="III/d">III/d</option>
+                <option value="IV/a">IV/a</option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="authError" class="text-red-600 text-xs bg-red-50 p-2.5 rounded-xl border border-red-100 font-medium">
+            ⚠️ {{ authError }}
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button @click="isRegistering = false; authError = ''" type="button" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+              Kembali ke Login
+            </button>
+            <button type="submit" class="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition shadow-md">
+              Daftarkan Akun
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- =============== DASHBOARD UTAMA (PENGGUNA AKTIF) =============== -->
+    <div v-else class="flex-1 flex flex-col">
+      <!-- Navbar Utama -->
+      <nav class="bg-emerald-900 text-white shadow-lg no-print sticky top-0 z-45">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16">
+            
+            <div class="flex items-center gap-3">
+              <span class="p-2 bg-emerald-850 rounded-xl w-10 h-10 flex items-center justify-center">
+                <img v-if="activeUser.customLogoLeft" :src="activeUser.customLogoLeft" alt="Logo Kiri" class="max-w-full max-h-full object-contain" />
+                <logo-kemenag v-else></logo-kemenag>
+              </span>
+              <div>
+                <span class="font-extrabold text-md block tracking-wide">E-KINERJA BULANAN</span>
+                <span class="text-[10px] text-emerald-300 tracking-wider font-mono uppercase">{{ activeUser.profile.satuanKerja }}</span>
+              </div>
+            </div>
+            
+            <!-- Desktop Tabs -->
+            <div class="hidden md:flex space-x-1">
+              <button @click="activeTab = 'dashboard'" :class="['px-4 py-2 rounded-xl text-sm font-semibold transition', activeTab === 'dashboard' ? 'bg-emerald-850 text-white shadow-inner' : 'hover:bg-emerald-850/50 text-emerald-100']">
+                Isi Kinerja
+              </button>
+              <button @click="activeTab = 'report'" :class="['px-4 py-2 rounded-xl text-sm font-semibold transition', activeTab === 'report' ? 'bg-emerald-850 text-white shadow-inner' : 'hover:bg-emerald-850/50 text-emerald-100']">
+                Pratinjau Lembar Capaian
+              </button>
+              <button @click="activeTab = 'signatures'" :class="['px-4 py-2 rounded-xl text-sm font-semibold transition', activeTab === 'signatures' ? 'bg-emerald-850 text-white shadow-inner' : 'hover:bg-emerald-850/50 text-emerald-100']">
+                Tanda Tangan Digital
+              </button>
+              <button @click="activeTab = 'settings'" :class="['px-4 py-2 rounded-xl text-sm font-semibold transition', activeTab === 'settings' ? 'bg-emerald-850 text-white shadow-inner' : 'hover:bg-emerald-850/50 text-emerald-100']">
+                Ubah Profil, Logo & KOP
+              </button>
+            </div>
+
+            <!-- Profile Info & Logout -->
+            <div class="flex items-center gap-3">
+              <div class="text-right hidden sm:block">
+                <p class="text-xs font-bold text-emerald-50">{{ activeUser.profile.fullName }}</p>
+                <p class="text-[9px] text-emerald-300 font-mono">NIP. {{ activeUser.profile.nip }}</p>
+              </div>
+              <button @click="handleLogout" class="p-1.5 bg-emerald-950 hover:bg-black rounded-xl text-emerald-200 hover:text-white transition flex items-center gap-1 text-xs font-bold border border-emerald-800">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                <span class="hidden sm:inline">Keluar</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </nav>
+
+      <!-- Mobile Bottom Tabs Navigation -->
+      <div class="md:hidden bg-white border-b border-slate-200 no-print flex justify-around py-2.5 sticky top-16 z-30 shadow-sm">
+        <button @click="activeTab = 'dashboard'" :class="['flex flex-col items-center gap-1 text-[11px] px-2 font-semibold', activeTab === 'dashboard' ? 'text-emerald-700' : 'text-slate-500']">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          Isi Data
+        </button>
+        <button @click="activeTab = 'report'" :class="['flex flex-col items-center gap-1 text-[11px] px-2 font-semibold', activeTab === 'report' ? 'text-emerald-700' : 'text-slate-500']">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4" /></svg>
+          Pratinjau
+        </button>
+        <button @click="activeTab = 'signatures'" :class="['flex flex-col items-center gap-1 text-[11px] px-2 font-semibold', activeTab === 'signatures' ? 'text-emerald-700' : 'text-slate-500']">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          Ttd Digital
+        </button>
+        <button @click="activeTab = 'settings'" :class="['flex flex-col items-center gap-1 text-[11px] px-2 font-semibold', activeTab === 'settings' ? 'text-emerald-700' : 'text-slate-500']">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+          Pengaturan
+        </button>
+      </div>
+
+      <!-- MAIN CONTAINER CONTENT -->
+      <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- ================== TAB 1: DASHBOARD INPUT ================== -->
+        <div v-if="activeTab === 'dashboard'" class="space-y-6 no-print">
+          
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Panel Form Isi Kinerja -->
+            <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                  <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <span class="p-1.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </span>
+                    {{ editingId ? 'Ubah Entri Kinerja' : 'Entri Capaian Kinerja' }}
+                  </h2>
+                  
+                  <!-- Switcher Mode Input -->
+                  <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                    <button @click="inputMode = 'manual'" type="button" :class="['px-3.5 py-1.5 rounded-lg transition', inputMode === 'manual' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800']">
+                      Form Manual
+                    </button>
+                    <button @click="inputMode = 'ai-notes'" type="button" :class="['px-3.5 py-1.5 rounded-lg transition flex items-center gap-1', inputMode === 'ai-notes' ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800']">
+                      <span>✨</span> Asisten Catatan AI
+                    </button>
+                  </div>
+                </div>
+
+                <!-- SUBMODE 1: MANUAL FORM -->
+                <form v-if="inputMode === 'manual'" @submit.prevent="handleAddOrEditLog" class="space-y-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal</label>
+                      <input type="date" required v-model="formDate" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm text-slate-800" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Volume (Angka)</label>
+                      <input type="number" min="1" required v-model="formVolume" placeholder="Contoh: 5" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Satuan Hasil</label>
+                      <select v-model="formSatuan" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm text-slate-800 font-medium">
+                        <option value="Dokumen">Dokumen</option>
+                        <option value="Laporan">Laporan</option>
+                        <option value="Kegiatan">Kegiatan</option>
+                        <option value="Berkas">Berkas</option>
+                        <option value="Paket">Paket</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Uraian Tugas Kegiatan</label>
+                    <textarea required rows="3" v-model="formActivity" placeholder="Masukkan deskripsi tugas kegiatan yang Anda selesaikan..." class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm"></textarea>
+                  </div>
+
+                  <div class="flex justify-end gap-2 pt-2">
+                    <button v-if="editingId" @click="cancelEdit" type="button" class="px-4.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                      Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition shadow-sm">
+                      {{ editingId ? 'Simpan Perubahan' : 'Tambahkan ke Lembar Rekap' }}
+                    </button>
+                  </div>
+                </form>
+
+                <!-- SUBMODE 2: AI NOTES ASSISTANT -->
+                <div v-else class="space-y-4">
+                  <div class="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100 text-xs text-emerald-950 space-y-1">
+                    <p class="font-bold">✨ Cara Penggunaan Asisten Pintar:</p>
+                    <p>Ketikkan catatan harian kasual Anda di bawah ini. AI akan mendeteksi tanggal, memproses tugas ke kalimat formal, dan mengekstrak volumenya secara instan.</p>
+                    <p class="italic font-semibold text-slate-600 mt-1">Contoh: "tgl 1 april bikin program kerja 5 dokumen. tgl 3 april kemarin ngajar di kelas XI sebanyak 2 kali kegiatan."</p>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Catatan Bebas Harian Anda</label>
+                    <textarea rows="4" v-model="rawNotesInput" placeholder="Tuliskan seluruh pekerjaan bulanan Anda secara kasual di sini..." class="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm"></textarea>
+                  </div>
+
+                  <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-medium">Bulan Aktif Target: {{ getIndonesianMonthNormal(filterMonth) }} {{ filterYear }}</span>
+                    <button @click="handleExtractNotesWithAI" :disabled="isAnalyzing" type="button" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-600/60 text-white font-bold rounded-xl text-xs transition shadow-sm flex items-center gap-1.5">
+                      <template v-if="isAnalyzing">
+                        <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                        Menganalisis Catatan...
+                      </template>
+                      <template v-else>
+                        <span>✨</span> Proses Catatan dengan AI
+                      </template>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Panel Filter Laporan Bulanan -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div>
+                <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <span class="p-1.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                  </span>
+                  Filter Laporan Bulanan
+                </h2>
+                <div class="space-y-3.5">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pilih Bulan</label>
+                    <select v-model="filterMonth" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-800">
+                      <option value="01">Januari</option>
+                      <option value="02">Februari</option>
+                      <option value="03">Maret</option>
+                      <option value="04">April</option>
+                      <option value="05">Mei</option>
+                      <option value="06">Juni</option>
+                      <option value="07">Juli</option>
+                      <option value="08">Agustus</option>
+                      <option value="09">September</option>
+                      <option value="10">Oktober</option>
+                      <option value="11">November</option>
+                      <option value="12">Desember</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pilih Tahun</label>
+                    <select v-model="filterYear" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-800">
+                      <option value="2025">2025</option>
+                      <option value="2026">2026</option>
+                      <option value="2027">2027</option>
+                      <option value="2028">2028</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between bg-emerald-50 p-3 rounded-xl">
+                <span class="text-xs text-emerald-950 font-bold">Total Baris Terfilter:</span>
+                <span class="px-3 py-1 bg-emerald-700 text-white rounded-full text-xs font-bold font-mono">
+                  {{ sortedAndFilteredLogs.length }} Kegiatan
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Hasil Ekstraksi AI (Konfirmasi Laporan) -->
+          <div v-if="inputMode === 'ai-notes' && extractedLogs.length > 0" class="bg-white rounded-3xl shadow-md border-2 border-emerald-500 p-6 animate-fade-in no-print">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span>🎉</span> Hasil Analisis Catatan AI
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Konfirmasi hasil pemrosesan AI sebelum digabungkan ke data kinerja utama Anda.</p>
+              </div>
+              <div class="flex gap-2">
+                <button @click="extractedLogs = []" type="button" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                  Batal
+                </button>
+                <button @click="handleInsertExtractedLogs" type="button" class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center gap-1">
+                  📥 Tambahkan ke Tabel Kinerja ({{ extractedLogs.filter(l => l.selected).length }})
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr class="bg-emerald-50 text-emerald-950 font-bold text-xs border-b border-emerald-100">
+                    <th class="p-3 text-center w-12">Pilih</th>
+                    <th class="p-3 w-36">Tanggal Deteksi</th>
+                    <th class="p-3">Uraian Tugas Resmi (Standardisasi AI)</th>
+                    <th className="p-3 w-24 text-center">Volume</th>
+                    <th class="p-3 w-32 text-center">Satuan Hasil</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="(log, idx) in extractedLogs" :key="log.tempId" class="hover:bg-slate-50/50 transition">
+                    <td class="p-3 text-center">
+                      <input type="checkbox" v-model="log.selected" class="w-4.5 h-4.5 accent-emerald-700 cursor-pointer rounded" />
+                    </td>
+                    <td class="p-3">
+                      <input type="date" v-model="log.date" class="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-slate-50 font-medium" />
+                    </td>
+                    <td class="p-3">
+                      <input type="text" v-model="log.activity" class="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800" />
+                    </td>
+                    <td class="p-3">
+                      <input type="number" min="1" v-model="log.volume" class="w-16 px-2 py-1 border border-slate-200 rounded-lg text-xs text-center font-bold" />
+                    </td>
+                    <td class="p-3">
+                      <select v-model="log.satuan" class="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white font-medium text-slate-800">
+                        <option value="Dokumen">Dokumen</option>
+                        <option value="Laporan">Laporan</option>
+                        <option value="Kegiatan">Kegiatan</option>
+                        <option value="Berkas">Berkas</option>
+                        <option value="Paket">Paket</option>
+                      </select>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Riwayat Tabel Log Utama -->
+          <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span class="p-1.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                </span>
+                Daftar Kegiatan Periode {{ getIndonesianMonthCaps(filterMonth) }} {{ filterYear }}
+              </h2>
+              <button @click="activeTab = 'report'" class="px-4.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-850 font-bold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-200">
+                <svg class="w-4 h-4 text-emerald-750" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4" /></svg>
+                Hasil Cetak Lembar Dokumen
+              </button>
+            </div>
+
+            <!-- Tabel Terformat -->
+            <div v-if="sortedAndFilteredLogs.length === 0" class="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+              <p class="text-slate-400 text-sm">Tidak ada kegiatan terekam pada periode {{ getIndonesianMonthNormal(filterMonth) }} {{ filterYear }}</p>
+              <p class="text-xs text-slate-400 mt-1.5">Gunakan formulir atau asisten catatan AI di atas untuk mengisi tugas Anda.</p>
+            </div>
+            
+            <div v-else class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-emerald-50 text-emerald-950 font-bold text-xs border-b border-emerald-100">
+                    <th class="p-3 text-center w-12">No</th>
+                    <th class="p-3 w-40">Tanggal</th>
+                    <th class="p-3">Uraian Tugas Kegiatan</th>
+                    <th class="p-3 w-28 text-center">Volume</th>
+                    <th class="p-3 w-32 text-center">Satuan Hasil</th>
+                    <th class="p-3 w-24 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                  <tr v-for="(log, idx) in sortedAndFilteredLogs" :key="log.id" class="hover:bg-slate-50/50 transition">
+                    <td class="p-3 text-center text-slate-400 font-mono text-xs">{{ idx + 1 }}</td>
+                    <td class="p-3 font-semibold text-slate-600 whitespace-nowrap">{{ getFormattedDateIndo(log.date) }}</td>
+                    <td class="p-3 text-slate-700 leading-relaxed font-normal">{{ log.activity }}</td>
+                    <td class="p-3 text-slate-900 text-center font-bold bg-emerald-50/10">{{ log.volume }}</td>
+                    <td class="p-3 text-slate-600 text-center font-medium">{{ log.satuan }}</td>
+                    <td class="p-3 text-center">
+                      <div class="flex justify-center gap-1">
+                        <button @click="handleEditSetup(log)" class="p-1 text-teal-600 hover:bg-teal-50 rounded-lg transition" title="Ubah data">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button @click="deleteTargetId = log.id" class="p-1 text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus data">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================== TAB 2: LEMBAR CETAK (PRESTASI A4) ================== -->
+        <div v-if="activeTab === 'report'" class="space-y-6">
+          
+          <!-- Kontrol Bar Cetak -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-250 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+            <div class="space-y-1 w-full sm:w-auto">
+              <h2 class="font-bold text-slate-900 text-sm">Pratinjau Lembar Capaian Kinerja ({{ activeUser.profile.fullName }})</h2>
+              <p class="text-xs text-slate-500">Konfigurasi margins dan layout dinas disesuaikan otomatis saat disimpan PDF.</p>
+              
+              <!-- Slider Skala KOP -->
+              <div class="pt-2 flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-700 whitespace-nowrap">Ukuran KOP:</span>
+                <input type="range" min="0.8" max="1.5" step="0.05" v-model.number="activeUser.kopScale" class="w-40 accent-emerald-700 h-1.5 bg-slate-200 rounded-lg cursor-pointer" />
+                <span class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{{ Math.round(activeUser.kopScale * 100) }}%</span>
+              </div>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto shrink-0">
+              <button @click="activeTab = 'dashboard'" class="flex-1 sm:flex-initial px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-250 text-center">
+                Kembali & Edit
+              </button>
+              <button @click="handlePrint" class="flex-1 sm:flex-initial px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4" /></svg>
+                Cetak / Simpan PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- Kertas Cetak A4 Mandiri -->
+          <div class="bg-white p-8 sm:p-14 shadow-xl border border-slate-300 rounded-3xl mx-auto max-w-[21cm] text-black print-page">
+            
+            <!-- KOP Surat Instansi dengan Dynamic Scaling -->
+            <div class="flex items-center gap-4 border-b-[3px] border-black pb-3 mb-5 justify-between">
+              <!-- Logo Kiri -->
+              <div class="flex items-center justify-center shrink-0" :style="{ width: `${75 * activeUser.kopScale}px`, height: `${75 * activeUser.kopScale}px`, transition: 'all 0.15s ease' }">
+                <img v-if="activeUser.customLogoLeft" :src="activeUser.customLogoLeft" alt="Logo Kiri" class="max-w-full max-h-full object-contain" />
+                <logo-kemenag v-else></logo-kemenag>
+              </div>
+
+              <!-- Deskripsi KOP Dinas -->
+              <div class="text-center flex-1 min-w-0" :style="{ fontSize: `${11 * activeUser.kopScale}px`, lineHeight: '1.25', transition: 'all 0.15s ease' }">
+                <h3 class="font-bold uppercase tracking-wide" :style="{ fontSize: `${11.5 * activeUser.kopScale}px` }">{{ activeUser.profile.kementerian }}</h3>
+                <h4 class="font-bold uppercase mt-0.5" :style="{ fontSize: `${10.5 * activeUser.kopScale}px` }">{{ activeUser.profile.kantorSektor }}</h4>
+                <h2 class="font-extrabold uppercase mt-0.5 text-slate-950" :style="{ fontSize: `${13 * activeUser.kopScale}px` }">{{ activeUser.profile.madrasahName }}</h2>
+                <p class="mt-1 font-medium text-slate-800" :style="{ fontSize: `${7.5 * activeUser.kopScale}px` }">{{ activeUser.profile.alamat }}</p>
+                <p class="font-medium text-slate-800" :style="{ fontSize: `${7.5 * activeUser.kopScale}px` }">{{ activeUser.profile.kabupatenInfo }}</p>
+                <p class="font-medium text-slate-800 italic" :style="{ fontSize: `${7.5 * activeUser.kopScale}px` }">{{ activeUser.profile.kontakInfo }}</p>
+              </div>
+
+              <!-- Logo Kanan -->
+              <div class="flex items-center justify-center shrink-0" :style="{ width: `${75 * activeUser.kopScale}px`, height: `${75 * activeUser.kopScale}px`, transition: 'all 0.15s ease' }">
+                <img v-if="activeUser.customLogoRight" :src="activeUser.customLogoRight" alt="Logo Kanan" class="max-w-full max-h-full object-contain" />
+                <logo-madrasah v-else></logo-madrasah>
+              </div>
+            </div>
+
+            <!-- Garis Batas KOP -->
+            <div class="border-t-[1px] border-black -mt-4.5 mb-5"></div>
+
+            <!-- Judul Dokumen -->
+            <div class="text-center mb-6">
+              <h2 class="text-[14px] sm:text-[16px] font-extrabold uppercase tracking-wide">LAPORAN CAPAIAN KINERJA BULANAN</h2>
+              <p class="text-[11px] sm:text-[12px] font-bold mt-1 tracking-wider">BULAN {{ getIndonesianMonthCaps(filterMonth) }}</p>
+            </div>
+
+            <!-- Identitas Pegawai (Tabel Sejajar Titik Dua) -->
+            <div class="mb-6 text-[11px] sm:text-[12px] max-w-xl">
+              <table class="w-full border-collapse">
+                <tbody>
+                  <tr class="align-top">
+                    <td class="w-28 sm:w-36 py-1 font-semibold text-slate-900">Nama</td>
+                    <td class="w-4 py-1 text-center">:</td>
+                    <td class="py-1 uppercase font-bold text-slate-950">{{ activeUser.profile.fullName }}</td>
+                  </tr>
+                  <tr class="align-top">
+                    <td class="py-1 font-semibold text-slate-900">NIP</td>
+                    <td class="py-1 text-center">:</td>
+                    <td class="py-1 font-mono text-slate-900">{{ activeUser.profile.nip }}</td>
+                  </tr>
+                  <tr class="align-top">
+                    <td class="py-1 font-semibold text-slate-900">Jabatan</td>
+                    <td class="py-1 text-center">:</td>
+                    <td class="py-1 text-slate-900">{{ activeUser.profile.jabatan }}</td>
+                  </tr>
+                  <tr class="align-top">
+                    <td class="py-1 font-semibold text-slate-900">Pangkat/ Gol.</td>
+                    <td class="py-1 text-center">:</td>
+                    <td class="py-1 font-mono text-slate-900">{{ activeUser.profile.pangkatGol }}</td>
+                  </tr>
+                  <tr class="align-top">
+                    <td class="py-1 font-semibold text-slate-900">Satuan Kerja</td>
+                    <td class="py-1 text-center">:</td>
+                    <td class="py-1 text-slate-900">{{ activeUser.profile.satuanKerja }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tabel Data Utama Capaian Kinerja -->
+            <table class="w-full text-[11px] sm:text-[12px] border-collapse border border-slate-950 mb-8">
+              <thead>
+                <tr class="bg-slate-50 print:bg-transparent border-b border-slate-950">
+                  <th class="border border-slate-950 p-2.5 text-center w-12 font-bold">No</th>
+                  <th class="border border-slate-950 p-2.5 font-bold text-left">Uraian Tugas Kegiatan</th>
+                  <th class="border border-slate-950 p-2.5 w-24 font-bold text-center">Volume</th>
+                  <th class="border border-slate-950 p-2.5 w-32 font-bold text-center">Satuan Hasil</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="sortedAndFilteredLogs.length === 0">
+                  <td colSpan="4" class="border border-slate-950 p-8 text-center text-slate-400 italic">
+                    Belum ada data tugas kegiatan terekam untuk periode ini.
+                  </td>
+                </tr>
+                <tr v-else v-for="(log, idx) in sortedAndFilteredLogs" :key="log.id" class="align-top">
+                  <td class="border border-slate-950 p-2.5 text-center font-mono">{{ idx + 1 }}</td>
+                  <td class="border border-slate-950 p-2.5 leading-relaxed text-slate-900 font-normal">{{ log.activity }}</td>
+                  <td class="border border-slate-950 p-2.5 text-center font-bold">{{ log.volume }}</td>
+                  <td class="border border-slate-950 p-2.5 text-center text-slate-800">{{ log.satuan }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Tanda Tangan Dinas Berdampingan -->
+            <div class="mt-12 text-[11px] sm:text-[12px] grid grid-cols-2 gap-8 text-center">
+              
+              <!-- Sektor Kiri: Kepala Madrasah -->
+              <div class="flex flex-col items-center">
+                <p class="font-semibold mb-1">Mengetahui,</p>
+                <p class="font-bold">Kepala {{ activeUser.profile.satuanKerja }}</p>
+                
+                <div class="h-28 w-full flex items-center justify-center my-1 relative">
+                  <img v-if="activeUser.headmasterSignature" :src="activeUser.headmasterSignature" alt="Ttd Kepala" class="max-h-24 max-w-full object-contain" />
+                  <div v-else class="border border-dashed border-slate-300 rounded-xl h-20 w-44 flex items-center justify-center text-slate-400 text-[10px] italic bg-slate-50 no-print">
+                    [ Tanda tangan belum diisi ]
+                  </div>
+                </div>
+
+                <p class="font-bold underline">{{ activeUser.profile.headmasterName }}</p>
+                <p class="text-[10px] text-slate-600">NIP. {{ activeUser.profile.headmasterNip }}</p>
+              </div>
+
+              <!-- Sektor Kanan: Pembuat Laporan -->
+              <div class="flex flex-col items-center">
+                <p class="text-slate-600 mb-1">{{ activeUser.profile.city }}, {{ getFormattedDateIndo(new Date().toISOString().split('T')[0]) }}</p>
+                <p class="font-bold">Pembuat Laporan,</p>
+                
+                <div class="h-28 w-full flex items-center justify-center my-1 relative">
+                  <img v-if="activeUser.mySignature" :src="activeUser.mySignature" alt="Ttd Pegawai" class="max-h-24 max-w-full object-contain" />
+                  <div v-else class="border border-dashed border-slate-300 rounded-xl h-20 w-44 flex items-center justify-center text-slate-400 text-[10px] italic bg-slate-50 no-print">
+                    [ Tanda tangan belum diisi ]
+                  </div>
+                </div>
+
+                <p class="font-bold underline">{{ activeUser.profile.fullName }}</p>
+                <p class="text-[10px] text-slate-600">NIP. {{ activeUser.profile.nip }}</p>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ================== TAB 3: TANDA TANGAN DIGITAL ================== -->
+        <div v-if="activeTab === 'signatures'" class="space-y-6 no-print animate-fade-in">
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 mb-1.5">Pad Tanda Tangan Digital ({{ activeUser.profile.fullName }})</h2>
+            <p class="text-sm text-slate-500">Lukis tanda tangan secara dinamis dengan mouse / sentuhan jari. Klik "Kunci Tanda Tangan" untuk menyimpannya.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <signature-pad title="Tanda Tangan Saya (Pegawai)" :saved-image="activeUser.mySignature" @save="saveMySignature" @clear="clearMySignature"></signature-pad>
+            <signature-pad title="Tanda Tangan Kepala Madrasah" :saved-image="activeUser.headmasterSignature" @save="saveHeadmasterSignature" @clear="clearHeadmasterSignature"></signature-pad>
+          </div>
+        </div>
+
+        <!-- ================== TAB 4: PENGATURAN PROFIL & LOGO ================== -->
+        <div v-if="activeTab === 'settings'" class="space-y-6 no-print animate-fade-in">
+          
+          <!-- Pengaturan Logo & KOP -->
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 mb-1.5 flex items-center gap-2">
+              <span class="p-1.5 bg-amber-50 text-amber-700 rounded-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              </span>
+              Atur Logo & Ukuran KOP Surat
+            </h2>
+            <p class="text-xs text-slate-500 mb-5">Personalisasi logo Kemenag dan Logo Madrasah Anda secara independen.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <!-- Upload Logo Kiri -->
+              <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center text-center">
+                <span class="text-xs font-bold text-slate-600 mb-2.5">LOGO KIRI (KEMENAG)</span>
+                <div class="w-20 h-20 bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center mb-3">
+                  <img v-if="activeUser.customLogoLeft" :src="activeUser.customLogoLeft" alt="Logo Kiri" class="max-w-full max-h-full object-contain" />
+                  <logo-kemenag v-else class="w-16 h-16"></logo-kemenag>
+                </div>
+                <input type="file" accept="image/*" id="logo-left-input" class="hidden" @change="uploadLogoLeft" />
+                <div class="flex gap-1.5">
+                  <label htmlFor="logo-left-input" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg cursor-pointer transition">
+                    Unggah Foto
+                  </label>
+                  <button v-if="activeUser.customLogoLeft" @click="resetLogoLeft" class="px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold text-xs rounded-lg transition">
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              <!-- Slider Skala KOP -->
+              <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col justify-center">
+                <span class="text-xs font-bold text-slate-600 mb-1.5 block">SKALA UKURAN KOP SURAT</span>
+                <p class="text-[11px] text-slate-400 mb-4 font-normal">Geser untuk menyesuaikan ukuran baris KOP secara proporsional sesuai preferensi cetak.</p>
+                <div class="space-y-2">
+                  <input type="range" min="0.8" max="1.5" step="0.05" v-model.number="activeUser.kopScale" class="w-full accent-emerald-700 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+                  <div class="flex justify-between items-center text-xs font-mono font-bold text-slate-700">
+                    <span>Kecil (80%)</span>
+                    <span class="bg-emerald-100 text-emerald-850 px-2 py-0.5 rounded border border-emerald-200">{{ Math.round(activeUser.kopScale * 100) }}%</span>
+                    <span>Besar (150%)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upload Logo Kanan -->
+              <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center text-center">
+                <span class="text-xs font-bold text-slate-600 mb-2.5">LOGO KANAN (MADRASAH)</span>
+                <div class="w-20 h-20 bg-white border border-slate-200 rounded-xl p-2 flex items-center justify-center mb-3">
+                  <img v-if="activeUser.customLogoRight" :src="activeUser.customLogoRight" alt="Logo Kanan" class="max-w-full max-h-full object-contain" />
+                  <logo-madrasah v-else class="w-16 h-16"></logo-madrasah>
+                </div>
+                <input type="file" accept="image/*" id="logo-right-input" class="hidden" @change="uploadLogoRight" />
+                <div class="flex gap-1.5">
+                  <label htmlFor="logo-right-input" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg cursor-pointer transition">
+                    Unggah Foto
+                  </label>
+                  <button v-if="activeUser.customLogoRight" @click="resetLogoRight" class="px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-semibold text-xs rounded-lg transition">
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Edit Biodata Profil Capaian -->
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span class="p-1.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              </span>
+              Edit Biodata Identitas Capaian ({{ activeUser.profile.fullName }})
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <!-- Profil Pegawai -->
+              <div class="space-y-3.5 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">DATA DIRI PEGAWAI</h3>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Pegawai (Huruf Kapital)</label>
+                  <input type="text" v-model="activeUser.profile.fullName" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm font-semibold text-slate-850" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Induk Pegawai (NIP)</label>
+                  <input type="text" v-model="activeUser.profile.nip" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm font-mono text-slate-850" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Jabatan</label>
+                  <input type="text" v-model="activeUser.profile.jabatan" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm text-slate-850" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Pangkat/Gol.</label>
+                    <input type="text" v-model="activeUser.profile.pangkatGol" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm text-slate-850" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Satuan Kerja</label>
+                    <input type="text" v-model="activeUser.profile.satuanKerja" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm text-slate-850" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Profil Instansi & Kepala -->
+              <div class="space-y-3.5 bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">DATA KOP INSTANSI & KEPALA</h3>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kementerian</label>
+                      <input type="text" v-model="activeUser.profile.kementerian" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-xs font-bold text-slate-850" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kantor Sektor</label>
+                      <input type="text" v-model="activeUser.profile.kantorSektor" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-xs font-bold text-slate-850" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kepala Madrasah</label>
+                      <input type="text" v-model="activeUser.profile.headmasterName" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm text-slate-850" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-600 mb-1">NIP Kepala Madrasah</label>
+                      <input type="text" v-model="activeUser.profile.headmasterNip" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 text-sm font-mono text-slate-850" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-5 flex justify-end">
+              <button @click="triggerToast('Data biodata instansi berhasil diperbarui!')" type="button" class="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition shadow-sm">
+                Simpan Perubahan Biodata
+              </button>
+            </div>
+          </div>
+
+          <!-- Direktori Guru Terdaftar -->
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <span class="p-1.5 bg-teal-50 text-teal-700 rounded-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+              </span>
+              Direktori Guru & Staf Terdaftar
+            </h2>
+            <p class="text-xs text-slate-500 mb-4">Berikut adalah daftar pengguna lokal terdaftar yang dapat menggunakan sistem.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div v-for="u in users" :key="u.username" :class="['p-4 rounded-2xl border flex items-center gap-3', u.username === currentUser ? 'bg-emerald-50/50 border-emerald-250' : 'bg-slate-50/50 border-slate-200']">
+                <div class="w-10 h-10 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center uppercase shrink-0">
+                  {{ u.profile.fullName.charAt(0) }}
+                </div>
+                <div class="min-w-0">
+                  <p class="font-bold text-xs truncate text-slate-900">{{ u.profile.fullName }}</p>
+                  <p class="text-[10px] text-slate-500 font-mono truncate">NIP. {{ u.profile.nip }}</p>
+                  <p class="text-[10px] text-emerald-850 font-bold mt-0.5 truncate">{{ u.profile.jabatan }}</p>
+                </div>
+                <span v-if="u.username === currentUser" class="ml-auto px-2 py-0.5 bg-emerald-200 text-emerald-900 text-[8px] font-extrabold rounded-full uppercase tracking-wider shrink-0">Saya</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ganti Password -->
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span class="p-1.5 bg-emerald-50 text-emerald-700 rounded-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              </span>
+              Keamanan Akun Aktif
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">User ID Anda</label>
+                <input type="text" disabled :value="currentUser" class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Ganti Password Baru</label>
+                <input type="password" v-model="activeUser.password" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-emerald-500 text-sm font-semibold text-slate-800" />
+              </div>
+              <button @click="triggerToast('Kredensial login berhasil diperbarui!')" type="button" class="py-2.5 bg-emerald-900 hover:bg-black text-white font-bold rounded-xl text-xs transition">
+                Terapkan Sandi Baru
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+      <!-- Footer -->
+      <footer class="bg-slate-100 border-t border-slate-200 py-6 text-center text-xs text-slate-500 mt-12 no-print">
+        <p>© 2026 E-Kinerja Madrasah Mandiri • Sesi Aktif: <span class="font-bold text-slate-700">{{ activeUser.profile.fullName }}</span></p>
+        <p class="mt-1">Aplikasi berjalan sepenuhnya secara privat & lokal di browser Anda.</p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- =============== VUE 3 APPLICATION SCRIPT =============== -->
+  <script>
+    const { createApp, ref, computed, onMounted, watch } = Vue;
+
+    // Komponen Logo Kemenag SVG
+    const LogoKemenagComponent = {
+      template: `
+        <svg class="w-full h-full select-none" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" fill="#005A36" stroke="#D4AF37" stroke-width="2"/>
+          <circle cx="50" cy="50" r="41" fill="none" stroke="#D4AF37" stroke-width="0.8" stroke-dasharray="3,2"/>
+          <path d="M50 25 V65" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"/>
+          <path d="M32 40 H68" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"/>
+          <path d="M32 40 L26 55 H38 Z" fill="#D4AF37"/>
+          <path d="M32 40 L32 55" stroke="#D4AF37" stroke-width="1"/>
+          <path d="M68 40 L62 55 H74 Z" fill="#D4AF37"/>
+          <path d="M68 40 L68 55" stroke="#D4AF37" stroke-width="1"/>
+          <path d="M38 68 C44 65 48 68 50 71 C52 68 56 65 62 68 V56 C56 53 52 56 50 58 C48 56 44 53 38 56 Z" fill="#FFFFFF" stroke="#005A36" stroke-width="1.5"/>
+          <path d="M50 13 L52.5 18 H58 L53.5 21 L55 26 L50 23 L45 26 L46.5 21 L42 18 H47.5 Z" fill="#D4AF37"/>
+          <path d="M22 78 Q50 84 78 78 L75 73 Q50 78 25 73 Z" fill="#D4AF37" stroke="#003e25" stroke-width="0.5"/>
+          <text x="50" y="77" fill="#003e25" font-size="3.2" font-weight="900" letter-spacing="0.1" text-anchor="middle">IKHLAS BERAMAL</text>
+        </svg>
+      `
+    };
+
+    // Komponen Logo Madrasah SVG
+    const LogoMadrasahComponent = {
+      template: `
+        <svg class="w-full h-full select-none" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="50,5 93,25 93,75 50,95 7,75 7,25" fill="#0D9488" stroke="#F59E0B" stroke-width="2"/>
+          <polygon points="50,11 87,28 87,72 50,89 13,72 13,28" fill="#0F766E" stroke="#FFFFFF" stroke-width="1"/>
+          <circle cx="50" cy="45" r="22" fill="#FFFFFF" stroke="#F59E0B" stroke-width="1.5"/>
+          <path d="M36,45 C36,35 42,30 50,30 C58,30 64,35 64,45 C64,55 58,60 50,60 C42,60 36,55 36,45 Z" fill="none" stroke="#0F766E" stroke-width="2"/>
+          <path d="M38,48 L46,55 L62,38" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M25,78 H75" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+          <text x="50" y="85" fill="#FFFFFF" font-size="6.5" font-weight="800" letter-spacing="0.5" text-anchor="middle">MADRASAH</text>
+          <polygon points="50,20 53,26 60,26 55,30 57,36 50,32 43,36 45,30 40,26 47,26" fill="#F59E0B"/>
+        </svg>
+      `
+    };
+
+    // Komponen Signature Pad responsif
+    const SignaturePadComponent = {
+      props: ['title', 'savedImage'],
+      emits: ['save', 'clear'],
+      template: `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center w-full">
+          <h3 class="font-bold text-emerald-800 mb-3 text-sm">{{ title }}</h3>
+          
+          <div v-if="savedImage" class="border border-emerald-200 rounded-xl p-3 bg-emerald-50/50 w-full flex flex-col items-center">
+            <img :src="savedImage" :alt="'Signature ' + title" class="h-28 object-contain" />
+            <button @click="$emit('clear')" class="mt-3 px-4 py-1.5 text-xs text-red-600 bg-white hover:bg-red-50 border border-red-200 font-semibold rounded-lg transition">
+              Ubah Tanda Tangan
+            </button>
+          </div>
+
+          <div v-else class="w-full">
+            <canvas ref="canvas" width="350" height="150" class="border-2 border-dashed border-emerald-200 bg-slate-50 rounded-xl cursor-crosshair w-full"
+              @mousedown="startDrawing" @mousemove="draw" @mouseup="stopDrawing" @mouseleave="stopDrawing"
+              @touchstart="startDrawing" @touchmove="draw" @touchend="stopDrawing">
+            </canvas>
+            <p class="text-[10px] text-slate-400 mt-1.5 text-center">Gunakan mouse atau sentuhan jari Anda</p>
+            <div class="flex gap-2 justify-end mt-3">
+              <button @click="clearCanvas" type="button" class="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg font-semibold transition">
+                Bersihkan
+              </button>
+              <button @click="saveCanvas" type="button" class="px-4 py-1.5 text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold transition shadow-sm">
+                Kunci Tanda Tangan
+              </button>
+            </div>
+          </div>
+        </div>
+      `,
+      setup(props, { emit }) {
+        const canvas = ref(null);
+        const isDrawing = ref(false);
+
+        const getCoordinates = (e) => {
+          const cvs = canvas.value;
+          const rect = cvs.getBoundingClientRect();
+          if (e.touches && e.touches.length > 0) {
+            return {
+              x: e.touches[0].clientX - rect.left,
+              y: e.touches[0].clientY - rect.top
+            };
+          } else {
+            return {
+              x: e.clientX - rect.left,
+              y: e.clientY - rect.top
+            };
+          }
+        };
+
+        const startDrawing = (e) => {
+          e.preventDefault();
+          const cvs = canvas.value;
+          const ctx = cvs.getContext('2d');
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = '#1e293b';
+          const coords = getCoordinates(e);
+          ctx.beginPath();
+          ctx.moveTo(coords.x, coords.y);
+          isDrawing.value = true;
+        };
+
+        const draw = (e) => {
+          if (!isDrawing.value) return;
+          e.preventDefault();
+          const cvs = canvas.value;
+          const ctx = cvs.getContext('2d');
+          const coords = getCoordinates(e);
+          ctx.lineTo(coords.x, coords.y);
+          ctx.stroke();
+        };
+
+        const stopDrawing = () => {
+          if (isDrawing.value) {
+            const cvs = canvas.value;
+            const ctx = cvs.getContext('2d');
+            ctx.closePath();
+            isDrawing.value = false;
+          }
+        };
+
+        const clearCanvas = () => {
+          const cvs = canvas.value;
+          const ctx = cvs.getContext('2d');
+          ctx.clearRect(0, 0, cvs.width, cvs.height);
+        };
+
+        const saveCanvas = () => {
+          const cvs = canvas.value;
+          const dataUrl = cvs.toDataURL('image/png');
+          emit('save', dataUrl);
+        };
+
+        return {
+          canvas,
+          startDrawing,
+          draw,
+          stopDrawing,
+          clearCanvas,
+          saveCanvas
+        };
+      }
+    };
+
+    const app = createApp({
+      components: {
+        'logo-kemenag': LogoKemenagComponent,
+        'logo-madrasah': LogoMadrasahComponent,
+        'signature-pad': SignaturePadComponent
+      },
+      setup() {
+        // Multi-user state
+        const users = ref([
+          {
+            username: 'rizki_kinerja',
+            password: 'banjar123',
+            profile: {
+              fullName: 'RIZKI NURACHMAN',
+              nip: '199612272025211004',
+              jabatan: 'Operator Layanan Operasional',
+              pangkatGol: 'V',
+              satuanKerja: 'MAN 4 Banjar',
+              kementerian: 'KEMENTERIAN AGAMA REPUBLIK INDONESIA',
+              kantorSektor: 'KANTOR KEMENTERIAN AGAMA KABUPATEN BANJAR',
+              madrasahName: 'MADRASAH ALIYAH NEGERI 4 BANJAR',
+              alamat: 'Jl. Pendidikan No. 01 Rt. 06 Rw.02 Kel. Sungai Pering Kec. Martapura 70613',
+              kabupatenInfo: 'Kabupaten Banjar Telp (0511) 4721327; Faksimili (0511) 4721327;',
+              kontakInfo: 'Email: man2martapura426101@gmail.com ; Website : www.man2martapura.sch.id',
+              headmasterName: 'Drs. H. Sulaiman, M.Pd.I',
+              headmasterNip: '19750410 200212 1 001',
+              city: 'Martapura'
+            },
+            kopScale: 1.15,
+            customLogoLeft: null,
+            customLogoRight: null,
+            mySignature: null,
+            headmasterSignature: null,
+            logs: [
+              { id: 1, date: '2026-04-01', activity: 'Menyiapkan dan memeriksa alat serta bahan yang diperlukan untuk pengoperasian layanan', volume: 5, satuan: 'Dokumen' },
+              { id: 2, date: '2026-04-02', activity: 'Melakukan pemeliharaan rutin dan preventif terhadap perangkat dan sistem yang digunakan.', volume: 5, satuan: 'Dokumen' },
+              { id: 3, date: '2026-04-03', activity: 'Mencatat dan mendata kegiatan pengoperasian layanan', volume: 5, satuan: 'Dokumen' },
+              { id: 4, date: '2026-04-04', activity: 'Mencatat, mengelola, dan menjaga keakuratan data yang terkait dengan layanan operasional', volume: 1, satuan: 'Dokumen' },
+            ]
+          },
+          {
+            username: 'ahmad_guru',
+            password: 'guru123',
+            profile: {
+              fullName: 'AHMAD YANI, S.Pd',
+              nip: '198805122015031002',
+              jabatan: 'Guru Ahli Pertama / Wali Kelas XI',
+              pangkatGol: 'III/b',
+              satuanKerja: 'MAN 4 Banjar',
+              kementerian: 'KEMENTERIAN AGAMA REPUBLIK INDONESIA',
+              kantorSektor: 'KANTOR KEMENTERIAN AGAMA KABUPATEN BANJAR',
+              madrasahName: 'MADRASAH ALIYAH NEGERI 4 BANJAR',
+              alamat: 'Jl. Pendidikan No. 01 Rt. 06 Rw.02 Kel. Sungai Pering Kec. Martapura 70613',
+              kabupatenInfo: 'Kabupaten Banjar Telp (0511) 4721327; Faksimili (0511) 4721327;',
+              kontakInfo: 'Email: man2martapura426101@gmail.com ; Website : www.man2martapura.sch.id',
+              headmasterName: 'Drs. H. Sulaiman, M.Pd.I',
+              headmasterNip: '19750410 200212 1 001',
+              city: 'Martapura'
+            },
+            kopScale: 1.10,
+            customLogoLeft: null,
+            customLogoRight: null,
+            mySignature: null,
+            headmasterSignature: null,
+            logs: [
+              { id: 1, date: '2026-04-01', activity: 'Melaksanakan kegiatan pembelajaran tatap muka di kelas XI', volume: 4, satuan: 'Kegiatan' },
+              { id: 2, date: '2026-04-02', activity: 'Menyusun perangkat program pembelajaran (RPP) mingguan', volume: 1, satuan: 'Dokumen' },
+            ]
+          }
+        ]);
+
+        // Sesi Akun Aktif
+        const currentUser = ref(null);
+        const isLoggedIn = ref(false);
+        const isRegistering = ref(false);
+        const inputUser = ref('');
+        const inputPass = ref('');
+        const authError = ref('');
+
+        // Registrasi Akun
+        const regUser = ref('');
+        const regPass = ref('');
+        const regFullName = ref('');
+        const regNip = ref('');
+        const regJabatan = ref('');
+        const regPangkat = ref('III/a');
+
+        // Form Kinerja
+        const formDate = ref(new Date().toISOString().split('T')[0]);
+        const formActivity = ref('');
+        const formVolume = ref('1');
+        const formSatuan = ref('Dokumen');
+        const editingId = ref(null);
+
+        // Input Mode (manual / AI notes)
+        const inputMode = ref('manual');
+        const rawNotesInput = ref('');
+        const isAnalyzing = ref(false);
+        const extractedLogs = ref([]);
+
+        // Navigasi & Filter
+        const activeTab = ref('dashboard');
+        const filterMonth = ref('04');
+        const filterYear = ref('2026');
+
+        // Modals & Toasts
+        const deleteTargetId = ref(null);
+        const toast = ref({ show: false, message: '', type: 'success' });
+
+        const triggerToast = (message, type = 'success') => {
+          toast.value = { show: true, message, type };
+          setTimeout(() => {
+            toast.value.show = false;
+          }, 3000);
+        };
+
+        const activeUser = computed(() => {
+          return users.value.find(u => u.username === currentUser.value) || users.value[0];
+        });
+
+        // Urutkan kegiatan terfilter
+        const sortedAndFilteredLogs = computed(() => {
+          if (!activeUser.value) return [];
+          return activeUser.value.logs
+            .filter(log => {
+              const [year, month] = log.date.split('-');
+              return year === filterYear.value && month === filterMonth.value;
+            })
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+        });
+
+        // Handlers Otentikasi
+        const handleLogin = () => {
+          const found = users.value.find(u => u.username === inputUser.value && u.password === inputPass.value);
+          if (found) {
+            currentUser.value = found.username;
+            isLoggedIn.value = true;
+            authError.value = '';
+            inputUser.value = '';
+            inputPass.value = '';
+            triggerToast(`Selamat datang kembali, ${found.profile.fullName}!`);
+          } else {
+            authError.value = 'User ID atau Password salah!';
+          }
+        };
+
+        const handleRegister = () => {
+          if (!regUser.value.trim() || !regPass.value.trim() || !regFullName.value.trim() || !regNip.value.trim() || !regJabatan.value.trim()) {
+            authError.value = 'Mohon lengkapi seluruh formulir!';
+            return;
+          }
+
+          const exists = users.value.some(u => u.username.toLowerCase() === regUser.value.toLowerCase());
+          if (exists) {
+            authError.value = 'User ID telah digunakan!';
+            return;
+          }
+
+          const newUser = {
+            username: regUser.value.trim().toLowerCase(),
+            password: regPass.value.trim(),
+            profile: {
+              fullName: regFullName.value.trim().toUpperCase(),
+              nip: regNip.value.trim(),
+              jabatan: regJabatan.value.trim(),
+              pangkatGol: regPangkat.value,
+              satuanKerja: 'MAN 4 Banjar',
+              kementerian: 'KEMENTERIAN AGAMA REPUBLIK INDONESIA',
+              kantorSektor: 'KANTOR KEMENTERIAN AGAMA KABUPATEN BANJAR',
+              madrasahName: 'MADRASAH ALIYAH NEGERI 4 BANJAR',
+              alamat: 'Jl. Pendidikan No. 01 Rt. 06 Rw.02 Kel. Sungai Pering Kec. Martapura 70613',
+              kabupatenInfo: 'Kabupaten Banjar Telp (0511) 4721327; Faksimili (0511) 4721327;',
+              kontakInfo: 'Email: man2martapura426101@gmail.com ; Website : www.man2martapura.sch.id',
+              headmasterName: 'Drs. H. Sulaiman, M.Pd.I',
+              headmasterNip: '19750410 200212 1 001',
+              city: 'Martapura'
+            },
+            kopScale: 1.15,
+            customLogoLeft: null,
+            customLogoRight: null,
+            mySignature: null,
+            headmasterSignature: null,
+            logs: []
+          };
+
+          users.value.push(newUser);
+          isRegistering.value = false;
+          inputUser.value = regUser.value;
+          inputPass.value = regPass.value;
+          regUser.value = '';
+          regPass.value = '';
+          regFullName.value = '';
+          regNip.value = '';
+          regJabatan.value = '';
+          triggerToast('Akun Anda berhasil didaftarkan!');
+        };
+
+        const handleLogout = () => {
+          isLoggedIn.value = false;
+          currentUser.value = null;
+          triggerToast('Sesi ditutup.');
+        };
+
+        // Form Kegiatan
+        const handleAddOrEditLog = () => {
+          if (!formActivity.value.trim() || !formVolume.value || !formSatuan.value) {
+            triggerToast('Harap isi semua kolom!', 'error');
+            return;
+          }
+
+          const volumeNum = parseInt(formVolume.value, 10) || 1;
+
+          if (editingId.value) {
+            activeUser.value.logs = activeUser.value.logs.map(log => {
+              if (log.id === editingId.value) {
+                return { ...log, date: formDate.value, activity: formActivity.value, volume: volumeNum, satuan: formSatuan.value };
+              }
+              return log;
+            });
+            triggerToast('Kegiatan berhasil diperbarui!');
+            editingId.value = null;
+          } else {
+            const newLog = {
+              id: Date.now(),
+              date: formDate.value,
+              activity: formActivity.value,
+              volume: volumeNum,
+              satuan: formSatuan.value
+            };
+            activeUser.value.logs.unshift(newLog);
+            triggerToast('Kegiatan baru ditambahkan!');
+          }
+
+          formActivity.value = '';
+          formVolume.value = '1';
+        };
+
+        const handleEditSetup = (log) => {
+          editingId.value = log.id;
+          formDate.value = log.date;
+          formActivity.value = log.activity;
+          formVolume.value = log.volume.toString();
+          formSatuan.value = log.satuan;
+          inputMode.value = 'manual';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        const cancelEdit = () => {
+          editingId.value = null;
+          formActivity.value = '';
+          formVolume.value = '1';
+        };
+
+        const executeDelete = () => {
+          activeUser.value.logs = activeUser.value.logs.filter(log => log.id !== deleteTargetId.value);
+          deleteTargetId.value = null;
+          triggerToast('Data berhasil dihapus.');
+        };
+
+        // Gemini AI Notes Parsing
+        const handleExtractNotesWithAI = async () => {
+          if (!rawNotesInput.value.trim()) {
+            triggerToast('Tuliskan catatan terlebih dahulu!', 'error');
+            return;
+          }
+
+          isAnalyzing.value = true;
+          extractedLogs.value = [];
+
+          const apiKey = "";
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+          const systemPrompt = `Anda adalah asisten administrasi sekolah madrasah Aliyah yang sangat cerdas di Indonesia. 
+Tugas Anda adalah menerima paragraf atau daftar catatan harian kasual dari guru/staf dan mengubahnya menjadi daftar entri capaian kinerja resmi yang terstruktur.
+
+Aturan Pemrosesan:
+1. Ekstrak data tanggal kegiatan, uraian tugas kegiatan, angka volume, dan satuan hasil.
+2. Jika tanggal ditulis kasual (misal "kemarin", "hari senin", "tgl 5"), konversikan menjadi format YYYY-MM-DD yang logis. Gunakan default tahun "${filterYear.value}" dan bulan "${filterMonth.value}" jika tidak disebutkan eksplisit.
+3. Ubah uraian kegiatan santai menjadi kalimat formal berstandar dinas dengan bahasa baku (contoh: "bikin RPP" -> "Menyusun dan merancang rencana pelaksanaan pembelajaran (RPP) mingguan").
+4. Volume harus berupa angka bulat positif (default: 1).
+5. Satuan Hasil harus disesuaikan ke salah satu dari kategori berikut saja: "Dokumen", "Laporan", "Kegiatan", "Berkas", "Paket".`;
+
+          const userQuery = `Berikut adalah catatan kinerja harian saya:
+---
+${rawNotesInput.value}
+---
+Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMonthNormal(filterMonth.value)} ${filterYear.value}.`;
+
+          const requestPayload = {
+            contents: [{ parts: [{ text: userQuery }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "OBJECT",
+                properties: {
+                  extracted: {
+                    type: "ARRAY",
+                    description: "Daftar entri kinerja hasil ekstraksi cerdas",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        date: { type: "STRING", description: "Tanggal kegiatan format YYYY-MM-DD" },
+                        activity: { type: "STRING", description: "Deskripsi tugas formal dinas resmi diawali huruf kapital" },
+                        volume: { type: "INTEGER", description: "Jumlah volume angka" },
+                        satuan: { type: "STRING", description: "Pilihan: 'Dokumen', 'Laporan', 'Kegiatan', 'Berkas', 'Paket'" }
+                      },
+                      required: ["date", "activity", "volume", "satuan"]
+                    }
+                  }
+                },
+                required: ["extracted"]
+              }
+            }
+          };
+
+          // Exponential backoff fetch
+          const fetchWithRetry = async (url, options, retries = 5, delay = 1000) => {
+            try {
+              const res = await fetch(url, options);
+              if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+              return await res.json();
+            } catch (error) {
+              if (retries > 0) {
+                await new Promise(r => setTimeout(r, delay));
+                return fetchWithRetry(url, options, retries - 1, delay * 2);
+              }
+              throw error;
+            }
+          };
+
+          try {
+            const data = await fetchWithRetry(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestPayload)
+            });
+
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+            const parsed = JSON.parse(rawText);
+
+            if (parsed.extracted && parsed.extracted.length > 0) {
+              extractedLogs.value = parsed.extracted.map((log, index) => ({
+                ...log,
+                tempId: Date.now() + index,
+                selected: true
+              }));
+              triggerToast(`Sukses mengekstrak ${extractedLogs.value.length} kegiatan!`);
+            } else {
+              triggerToast('Format data catatan tidak dikenali.', 'error');
+            }
+          } catch (err) {
+            console.error(err);
+            triggerToast('Koneksi asisten AI terhambat.', 'error');
+          } finally {
+            isAnalyzing.value = false;
+          }
+        };
+
+        const handleInsertExtractedLogs = () => {
+          const selected = extractedLogs.value.filter(l => l.selected);
+          if (selected.length === 0) {
+            triggerToast('Pilih setidaknya satu kegiatan!', 'error');
+            return;
+          }
+
+          const formatted = selected.map(l => ({
+            id: Date.now() + Math.random(),
+            date: l.date,
+            activity: l.activity,
+            volume: l.volume,
+            satuan: l.satuan
+          }));
+
+          activeUser.value.logs = [...formatted, ...activeUser.value.logs];
+          extractedLogs.value = [];
+          rawNotesInput.value = '';
+          triggerToast(`Berhasil menambahkan ${formatted.length} kegiatan dari AI!`);
+        };
+
+        // Upload Logo
+        const uploadLogoLeft = (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              activeUser.value.customLogoLeft = reader.result;
+              triggerToast('Logo Kemenag berhasil diperbarui.');
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+
+        const resetLogoLeft = () => {
+          activeUser.value.customLogoLeft = null;
+          triggerToast('Logo Kemenag di-reset.');
+        };
+
+        const uploadLogoRight = (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              activeUser.value.customLogoRight = reader.result;
+              triggerToast('Logo Madrasah berhasil diperbarui.');
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+
+        const resetLogoRight = () => {
+          activeUser.value.customLogoRight = null;
+          triggerToast('Logo Madrasah di-reset.');
+        };
+
+        // Signature Pad Save Handlers
+        const saveMySignature = (img) => {
+          activeUser.value.mySignature = img;
+          triggerToast('Tanda tangan Anda berhasil dikunci.');
+        };
+
+        const clearMySignature = () => {
+          activeUser.value.mySignature = null;
+        };
+
+        const saveHeadmasterSignature = (img) => {
+          activeUser.value.headmasterSignature = img;
+          triggerToast('Tanda tangan Kepala Madrasah dikunci.');
+        };
+
+        const clearHeadmasterSignature = () => {
+          activeUser.value.headmasterSignature = null;
+        };
+
+        // Helper Tanggal & Bulan
+        const getIndonesianMonthNormal = (monthNum) => {
+          const months = {
+            '01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April',
+            '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus',
+            '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember'
+          };
+          return months[monthNum] || '';
+        };
+
+        const getIndonesianMonthCaps = (monthNum) => {
+          return getIndonesianMonthNormal(monthNum).toUpperCase();
+        };
+
+        const getFormattedDateIndo = (dateStr) => {
+          if (!dateStr) return '';
+          const [year, month, day] = dateStr.split('-');
+          return `${parseInt(day, 10)} ${getIndonesianMonthNormal(month)} ${year}`;
+        };
+
+        const handlePrint = () => {
+          window.print();
+        };
+
+        return {
+          users,
+          currentUser,
+          isLoggedIn,
+          isRegistering,
+          inputUser,
+          inputPass,
+          authError,
+          regUser,
+          regPass,
+          regFullName,
+          regNip,
+          regJabatan,
+          regPangkat,
+          formDate,
+          formActivity,
+          formVolume,
+          formSatuan,
+          editingId,
+          inputMode,
+          rawNotesInput,
+          isAnalyzing,
+          extractedLogs,
+          activeTab,
+          filterMonth,
+          filterYear,
+          deleteTargetId,
+          toast,
+          activeUser,
+          sortedAndFilteredLogs,
+          triggerToast,
+          handleLogin,
+          handleRegister,
+          handleLogout,
+          handleAddOrEditLog,
+          handleEditSetup,
+          cancelEdit,
+          executeDelete,
+          handleExtractNotesWithAI,
+          handleInsertExtractedLogs,
+          uploadLogoLeft,
+          resetLogoLeft,
+          uploadLogoRight,
+          resetLogoRight,
+          saveMySignature,
+          clearMySignature,
+          saveHeadmasterSignature,
+          clearHeadmasterSignature,
+          getIndonesianMonthNormal,
+          getIndonesianMonthCaps,
+          getFormattedDateIndo,
+          handlePrint
+        };
+      }
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
