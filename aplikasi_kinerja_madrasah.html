@@ -1388,7 +1388,8 @@ Aturan Pemrosesan:
 2. Jika tanggal ditulis kasual (misal "kemarin", "hari senin", "tgl 5"), konversikan menjadi format YYYY-MM-DD yang logis. Gunakan default tahun "${filterYear.value}" dan bulan "${filterMonth.value}" jika tidak disebutkan eksplisit.
 3. Ubah uraian kegiatan santai menjadi kalimat formal berstandar dinas dengan bahasa baku (contoh: "bikin RPP" -> "Menyusun dan merancang rencana pelaksanaan pembelajaran (RPP) mingguan").
 4. Volume harus berupa angka bulat positif (default: 1).
-5. Satuan Hasil harus disesuaikan ke salah satu dari kategori berikut saja: "Dokumen", "Laporan", "Kegiatan", "Berkas", "Paket".`;
+5. Satuan Hasil harus disesuaikan ke salah satu dari kategori berikut saja: "Dokumen", "Laporan", "Kegiatan", "Berkas", "Paket".
+6. WAJIB mengembalikan hasil dalam format JSON murni TANPA markdown backticks (\`\`\`).`;
 
           const userQuery = `Berikut adalah catatan kinerja harian saya:
 ---
@@ -1425,10 +1426,13 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
           };
 
           // Exponential backoff fetch
-          const fetchWithRetry = async (url, options, retries = 5, delay = 1000) => {
+          const fetchWithRetry = async (url, options, retries = 2, delay = 1000) => {
             try {
               const res = await fetch(url, options);
-              if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+              if (!res.ok) {
+                const errData = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errData}`);
+              }
               return await res.json();
             } catch (error) {
               if (retries > 0) {
@@ -1446,7 +1450,9 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
               body: JSON.stringify(requestPayload)
             });
 
-            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+            let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+            // Bersihkan jika ada markdown block secara tidak sengaja
+            rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(rawText);
 
             if (parsed.extracted && parsed.extracted.length > 0) {
@@ -1460,8 +1466,9 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
               triggerToast('Format data catatan tidak dikenali.', 'error');
             }
           } catch (err) {
-            console.error(err);
-            triggerToast('Koneksi asisten AI terhambat.', 'error');
+            console.error("AI Error:", err);
+            let msg = err.message || "Koneksi terhambat.";
+            triggerToast(`Gagal: ${msg.substring(0, 50)}...`, 'error');
           } finally {
             isAnalyzing.value = false;
           }
