@@ -311,20 +311,9 @@
                     </span>
                     {{ editingId ? 'Ubah Entri Kinerja' : 'Entri Capaian Kinerja' }}
                   </h2>
-                  
-                  <!-- Switcher Mode Input -->
-                  <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-                    <button @click="inputMode = 'manual'" type="button" :class="['px-3.5 py-1.5 rounded-lg transition', inputMode === 'manual' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800']">
-                      Form Manual
-                    </button>
-                    <button @click="inputMode = 'ai-notes'" type="button" :class="['px-3.5 py-1.5 rounded-lg transition flex items-center gap-1', inputMode === 'ai-notes' ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800']">
-                      <span>✨</span> Asisten Catatan AI
-                    </button>
-                  </div>
                 </div>
 
-                <!-- SUBMODE 1: MANUAL FORM -->
-                <form v-if="inputMode === 'manual'" @submit.prevent="handleAddOrEditLog" class="space-y-4">
+                <form @submit.prevent="handleAddOrEditLog" class="space-y-4">
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal</label>
@@ -360,33 +349,6 @@
                     </button>
                   </div>
                 </form>
-
-                <!-- SUBMODE 2: AI NOTES ASSISTANT -->
-                <div v-else class="space-y-4">
-                  <div class="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100 text-xs text-emerald-950 space-y-1">
-                    <p class="font-bold">✨ Cara Penggunaan Asisten Pintar:</p>
-                    <p>Ketikkan catatan harian kasual Anda di bawah ini. AI akan mendeteksi tanggal, memproses tugas ke kalimat formal, dan mengekstrak volumenya secara instan.</p>
-                    <p class="italic font-semibold text-slate-600 mt-1">Contoh: "tgl 1 april bikin program kerja 5 dokumen. tgl 3 april kemarin ngajar di kelas XI sebanyak 2 kali kegiatan."</p>
-                  </div>
-
-                  <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Catatan Bebas Harian Anda</label>
-                    <textarea rows="4" v-model="rawNotesInput" placeholder="Tuliskan seluruh pekerjaan bulanan Anda secara kasual di sini..." class="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm"></textarea>
-                  </div>
-
-                  <div class="flex justify-between items-center">
-                    <span class="text-[10px] text-slate-400 font-medium">Bulan Aktif Target: {{ getIndonesianMonthNormal(filterMonth) }} {{ filterYear }}</span>
-                    <button @click="handleExtractNotesWithAI" :disabled="isAnalyzing" type="button" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-600/60 text-white font-bold rounded-xl text-xs transition shadow-sm flex items-center gap-1.5">
-                      <template v-if="isAnalyzing">
-                        <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                        Menganalisis Catatan...
-                      </template>
-                      <template v-else>
-                        <span>✨</span> Proses Catatan dengan AI
-                      </template>
-                    </button>
-                  </div>
-                </div>
 
               </div>
             </div>
@@ -438,65 +400,6 @@
               </div>
             </div>
 
-          </div>
-
-          <!-- Hasil Ekstraksi AI (Konfirmasi Laporan) -->
-          <div v-if="inputMode === 'ai-notes' && extractedLogs.length > 0" class="bg-white rounded-3xl shadow-md border-2 border-emerald-500 p-6 animate-fade-in no-print">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <div>
-                <h3 class="text-lg font-bold text-emerald-900 flex items-center gap-1.5">
-                  <span>🎉</span> Hasil Analisis Catatan AI
-                </h3>
-                <p class="text-xs text-slate-500 mt-0.5">Konfirmasi hasil pemrosesan AI sebelum digabungkan ke data kinerja utama Anda.</p>
-              </div>
-              <div class="flex gap-2">
-                <button @click="extractedLogs = []" type="button" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
-                  Batal
-                </button>
-                <button @click="handleInsertExtractedLogs" type="button" class="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition shadow-md flex items-center gap-1">
-                  📥 Tambahkan ke Tabel Kinerja ({{ extractedLogs.filter(l => l.selected).length }})
-                </button>
-              </div>
-            </div>
-
-            <div class="overflow-x-auto border border-slate-200 rounded-xl">
-              <table class="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr class="bg-emerald-50 text-emerald-950 font-bold text-xs border-b border-emerald-100">
-                    <th class="p-3 text-center w-12">Pilih</th>
-                    <th class="p-3 w-36">Tanggal Deteksi</th>
-                    <th class="p-3">Uraian Tugas Resmi (Standardisasi AI)</th>
-                    <th className="p-3 w-24 text-center">Volume</th>
-                    <th class="p-3 w-32 text-center">Satuan Hasil</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                  <tr v-for="(log, idx) in extractedLogs" :key="log.tempId" class="hover:bg-slate-50/50 transition">
-                    <td class="p-3 text-center">
-                      <input type="checkbox" v-model="log.selected" class="w-4.5 h-4.5 accent-emerald-700 cursor-pointer rounded" />
-                    </td>
-                    <td class="p-3">
-                      <input type="date" v-model="log.date" class="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-slate-50 font-medium" />
-                    </td>
-                    <td class="p-3">
-                      <input type="text" v-model="log.activity" class="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800" />
-                    </td>
-                    <td class="p-3">
-                      <input type="number" min="1" v-model="log.volume" class="w-16 px-2 py-1 border border-slate-200 rounded-lg text-xs text-center font-bold" />
-                    </td>
-                    <td class="p-3">
-                      <select v-model="log.satuan" class="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white font-medium text-slate-800">
-                        <option value="Dokumen">Dokumen</option>
-                        <option value="Laporan">Laporan</option>
-                        <option value="Kegiatan">Kegiatan</option>
-                        <option value="Berkas">Berkas</option>
-                        <option value="Paket">Paket</option>
-                      </select>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
 
           <!-- Riwayat Tabel Log Utama -->
@@ -918,26 +821,6 @@
             </div>
           </div>
 
-          <!-- Konfigurasi AI -->
-          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mt-6">
-            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span class="p-1.5 bg-blue-50 text-blue-700 rounded-xl">
-                <span>✨</span>
-              </span>
-              Konfigurasi Asisten AI (Gemini)
-            </h2>
-            <p class="text-xs text-slate-500 mb-4">Masukkan API Key Google Gemini Anda agar fitur Asisten Catatan AI dapat berfungsi. API Key hanya disimpan secara lokal di browser Anda.</p>
-            <div class="flex items-end gap-4">
-              <div class="flex-1">
-                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">API Key Gemini</label>
-                <input type="password" v-model="geminiApiKey" placeholder="AIzaSy..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-emerald-500 text-sm font-semibold text-slate-800" />
-              </div>
-              <button @click="saveApiKey" type="button" class="py-2.5 px-6 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-xs transition">
-                Simpan API Key
-              </button>
-            </div>
-          </div>
-
         </div>
 
       </main>
@@ -1191,23 +1074,10 @@
         const formSatuan = ref('Dokumen');
         const editingId = ref(null);
 
-        // Input Mode (manual / AI notes)
-        const inputMode = ref('manual');
-        const rawNotesInput = ref('');
-        const isAnalyzing = ref(false);
-        const extractedLogs = ref([]);
-
         // Navigasi & Filter
         const activeTab = ref('dashboard');
         const filterMonth = ref('04');
         const filterYear = ref('2026');
-
-        // AI API Key
-        const geminiApiKey = ref(localStorage.getItem('gemini_api_key') || '');
-        const saveApiKey = () => {
-          localStorage.setItem('gemini_api_key', geminiApiKey.value);
-          triggerToast('API Key AI berhasil disimpan!');
-        };
 
         // Modals & Toasts
         const deleteTargetId = ref(null);
@@ -1347,7 +1217,6 @@
           formActivity.value = log.activity;
           formVolume.value = log.volume.toString();
           formSatuan.value = log.satuan;
-          inputMode.value = 'manual';
           window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
@@ -1361,123 +1230,6 @@
           activeUser.value.logs = activeUser.value.logs.filter(log => log.id !== deleteTargetId.value);
           deleteTargetId.value = null;
           triggerToast('Data berhasil dihapus.');
-        };
-
-        // Gemini AI Notes Parsing
-        const handleExtractNotesWithAI = async () => {
-          if (!rawNotesInput.value.trim()) {
-            triggerToast('Tuliskan catatan terlebih dahulu!', 'error');
-            return;
-          }
-          if (!geminiApiKey.value) {
-            triggerToast('Silakan atur API Key Gemini di menu Pengaturan terlebih dahulu!', 'error');
-            return;
-          }
-
-          isAnalyzing.value = true;
-          extractedLogs.value = [];
-
-          const apiKey = geminiApiKey.value;
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-          const systemPrompt = `Anda adalah asisten administrasi sekolah madrasah Aliyah yang sangat cerdas di Indonesia. 
-Tugas Anda adalah menerima paragraf atau daftar catatan harian kasual dari guru/staf dan mengubahnya menjadi daftar entri capaian kinerja resmi yang terstruktur.
-
-Aturan Pemrosesan:
-1. Ekstrak data tanggal kegiatan, uraian tugas kegiatan, angka volume, dan satuan hasil.
-2. Jika tanggal ditulis kasual (misal "kemarin", "hari senin", "tgl 5"), konversikan menjadi format YYYY-MM-DD yang logis. Gunakan default tahun "${filterYear.value}" dan bulan "${filterMonth.value}" jika tidak disebutkan eksplisit.
-3. Ubah uraian kegiatan santai menjadi kalimat formal berstandar dinas dengan bahasa baku (contoh: "bikin RPP" -> "Menyusun dan merancang rencana pelaksanaan pembelajaran (RPP) mingguan").
-4. Volume harus berupa angka bulat positif (default: 1).
-5. Satuan Hasil harus disesuaikan ke salah satu dari kategori berikut saja: "Dokumen", "Laporan", "Kegiatan", "Berkas", "Paket".
-6. WAJIB mengembalikan hasil dalam format JSON murni TANPA markdown backticks (\`\`\`), dengan struktur persis seperti ini:
-{
-  "extracted": [
-    { "date": "YYYY-MM-DD", "activity": "Deskripsi", "volume": 1, "satuan": "Dokumen" }
-  ]
-}`;
-
-          const userQuery = `Berikut adalah catatan kinerja harian saya:
----
-${rawNotesInput.value}
----
-Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMonthNormal(filterMonth.value)} ${filterYear.value}.`;
-
-          const requestPayload = {
-            contents: [{ parts: [{ text: userQuery }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            generationConfig: {
-              responseMimeType: "application/json"
-            }
-          };
-
-          // Exponential backoff fetch
-          const fetchWithRetry = async (url, options, retries = 2, delay = 1000) => {
-            try {
-              const res = await fetch(url, options);
-              if (!res.ok) {
-                const errData = await res.text();
-                throw new Error(`HTTP ${res.status}: ${errData}`);
-              }
-              return await res.json();
-            } catch (error) {
-              if (retries > 0) {
-                await new Promise(r => setTimeout(r, delay));
-                return fetchWithRetry(url, options, retries - 1, delay * 2);
-              }
-              throw error;
-            }
-          };
-
-          try {
-            const data = await fetchWithRetry(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestPayload)
-            });
-
-            let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-            // Bersihkan jika ada markdown block secara tidak sengaja
-            rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            const parsed = JSON.parse(rawText);
-
-            if (parsed.extracted && parsed.extracted.length > 0) {
-              extractedLogs.value = parsed.extracted.map((log, index) => ({
-                ...log,
-                tempId: Date.now() + index,
-                selected: true
-              }));
-              triggerToast(`Sukses mengekstrak ${extractedLogs.value.length} kegiatan!`);
-            } else {
-              triggerToast('Format data catatan tidak dikenali.', 'error');
-            }
-          } catch (err) {
-            console.error("AI Error:", err);
-            let msg = err.message || "Koneksi terhambat.";
-            triggerToast(`Gagal: ${msg.substring(0, 50)}...`, 'error');
-          } finally {
-            isAnalyzing.value = false;
-          }
-        };
-
-        const handleInsertExtractedLogs = () => {
-          const selected = extractedLogs.value.filter(l => l.selected);
-          if (selected.length === 0) {
-            triggerToast('Pilih setidaknya satu kegiatan!', 'error');
-            return;
-          }
-
-          const formatted = selected.map(l => ({
-            id: Date.now() + Math.random(),
-            date: l.date,
-            activity: l.activity,
-            volume: l.volume,
-            satuan: l.satuan
-          }));
-
-          activeUser.value.logs = [...formatted, ...activeUser.value.logs];
-          extractedLogs.value = [];
-          rawNotesInput.value = '';
-          triggerToast(`Berhasil menambahkan ${formatted.length} kegiatan dari AI!`);
         };
 
         // Upload Logo
@@ -1579,10 +1331,6 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
           formVolume,
           formSatuan,
           editingId,
-          inputMode,
-          rawNotesInput,
-          isAnalyzing,
-          extractedLogs,
           activeTab,
           filterMonth,
           filterYear,
@@ -1598,8 +1346,6 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
           handleEditSetup,
           cancelEdit,
           executeDelete,
-          handleExtractNotesWithAI,
-          handleInsertExtractedLogs,
           uploadLogoLeft,
           resetLogoLeft,
           uploadLogoRight,
@@ -1611,9 +1357,7 @@ Silakan buatkan entri laporan kinerja terstruktur untuk bulan ${getIndonesianMon
           getIndonesianMonthNormal,
           getIndonesianMonthCaps,
           getFormattedDateIndo,
-          handlePrint,
-          geminiApiKey,
-          saveApiKey
+          handlePrint
         };
       }
     });
